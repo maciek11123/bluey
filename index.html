@@ -340,7 +340,9 @@
     }
 
     function positionChar(person, mp) {
-      const charH = Math.max(person.torsoH * 2.8, 100);
+      let charH = Math.max(person.torsoH * 2.8, 100);
+      // Cap at 50% of screen height
+      charH = Math.min(charH, mp.ch * 0.5);
       const charW = charH * 0.75;
       const dir = person.px < mp.cw / 2 ? 1 : -1;
       const offset = person.shoulderW * 1.2 * dir;
