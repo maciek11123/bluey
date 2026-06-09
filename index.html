@@ -45,23 +45,9 @@
       35%  { opacity: 1; transform: scaleX(-1) scale(1.08) translateY(-10px); }
       100% { opacity: 0; transform: scaleX(-1) scale(0) translateY(20px); }
     }
-    @keyframes idleBob {
-      0%, 100% { transform: scaleX(-1) translateY(0); }
-      50%      { transform: scaleX(-1) translateY(-8px); }
-    }
-    @keyframes wave {
-      0%   { transform: scaleX(-1) rotate(0deg); }
-      15%  { transform: scaleX(-1) rotate(14deg); }
-      30%  { transform: scaleX(-1) rotate(-12deg); }
-      45%  { transform: scaleX(-1) rotate(10deg); }
-      60%  { transform: scaleX(-1) rotate(-8deg); }
-      75%  { transform: scaleX(-1) rotate(5deg); }
-      100% { transform: scaleX(-1) rotate(0deg); }
-    }
 
     #character.entering { display: block; animation: popIn 0.5s cubic-bezier(0.34,1.56,0.64,1) forwards; }
-    #character.waving   { display: block; opacity: 1; animation: wave 0.8s ease-in-out 2; }
-    #character.idle     { display: block; opacity: 1; animation: idleBob 2.5s ease-in-out infinite; }
+    #character.visible  { display: block; opacity: 1; transform: scaleX(-1); }
     #character.exiting  { display: block; animation: popOut 0.45s ease-in forwards; }
 
     /* Splash */
@@ -319,26 +305,25 @@
       lastCharTime = now;
       followTarget = person;
 
-      // Pick GIF based on person's current activity
+      // Pick image based on person's current activity
       const gif = pickGif(person.activity === "idle" ? "waving" : person.activity);
       charEl.src = gif.src;
       positionChar(person, mapping);
 
+      // Pop in → sit still (GIF animates itself) → pop out
       charEl.className = "entering";
       setTimeout(() => {
         if (!charActive) return;
-        charEl.className = "waving";
+        charEl.className = "visible";
+        // Schedule exit
         setTimeout(() => {
           if (!charActive) return;
-          charEl.className = "idle";
+          charEl.className = "exiting";
           setTimeout(() => {
-            charEl.className = "exiting";
-            setTimeout(() => {
-              charEl.className = ""; charEl.style.display = "none";
-              charActive = false; followTarget = null;
-            }, 450);
-          }, CFG.charVisibleMs - 2200);
-        }, 1600);
+            charEl.className = ""; charEl.style.display = "none";
+            charActive = false; followTarget = null;
+          }, 450);
+        }, CFG.charVisibleMs);
       }, 500);
     }
 
@@ -517,10 +502,7 @@
             }
 
             // Follow
-            if (charActive && followTarget) {
-              const match = surv.find(p => p.ci === followTarget.ci);
-              if (match) { followTarget = match; positionChar(match, mp); }
-            }
+            // Character stays fixed where it spawned
 
             people = surv;
             drawIndicators(mp);
