@@ -311,6 +311,7 @@
       positionChar(person, mapping);
 
       // Pop in → sit still (GIF animates itself) → pop out
+      charEl.style.display = ""; // clear any inline override
       charEl.className = "entering";
       setTimeout(() => {
         if (!charActive) return;
