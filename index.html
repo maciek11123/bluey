@@ -125,12 +125,24 @@
   <script type="module">
     // ─── GIF LIBRARY with activity tags ─────────────────
     const GIFS = [
-      { src: "bluey_dancing_1.gif",       desc: "Bluey waving, one arm up",           activity: ["waving"] },
-      { src: "bingo_dance_1.gif",          desc: "Bingo dancing, arms spread wide",    activity: ["waving"] },
-      { src: "bluey_1.gif",                desc: "Bluey grooving, eyes closed",        activity: ["dancing"] },
-      { src: "bluey_bingo_dance_1.gif",    desc: "Bluey & Bingo dancing together",     activity: ["dancing"] },
-      { src: "bluey_bingo_surprised.gif",  desc: "Bingo & Bluey surprised",            activity: ["jumping", "armsup"] },
-      { src: "bluey_bong_happy.gif",       desc: "Bingo waving, Bluey standing happy", activity: ["idle", "waving"] },
+      // ── Animated GIFs ──
+      { src: "bluey_dancing_1.gif",        desc: "Bluey waving, one arm up (animated)",       activity: ["waving"] },
+      { src: "bingo_dance_1.gif",           desc: "Bingo dancing, arms wide (animated)",       activity: ["waving", "dancing"] },
+      { src: "bluey_1.gif",                 desc: "Bluey grooving, eyes closed (animated)",    activity: ["dancing"] },
+      { src: "bluey_bingo_dance_1.gif",     desc: "Bluey & Bingo dancing (animated)",          activity: ["dancing"] },
+      { src: "bluey_bingo_surprised.gif",   desc: "Bingo & Bluey surprised (animated)",        activity: ["jumping", "armsup"] },
+      { src: "bluey_bong_happy.gif",        desc: "Bingo waving, Bluey happy (animated)",      activity: ["idle", "waving"] },
+      // ── Static PNGs (transparent bg) ──
+      { src: "bluey_arms_up.png",           desc: "Bluey excited, arms raised wide",           activity: ["armsup", "waving"] },
+      { src: "bluey_scared.png",            desc: "Bluey startled, fists up",                  activity: ["jumping"] },
+      { src: "bluey_walking.png",           desc: "Bluey walking casually",                    activity: ["idle"] },
+      { src: "bluey_bingo_jumping.png",     desc: "Bluey & Bingo jumping together",            activity: ["jumping", "armsup"] },
+      { src: "bingo_waving.png",            desc: "Bingo waving, looking happy",               activity: ["waving"] },
+      { src: "bingo_arms_wide.png",         desc: "Bingo arms spread, playful",                activity: ["dancing", "waving"] },
+      { src: "bluey_dancing_happy.png",     desc: "Bluey dancing, eyes closed, grooving",      activity: ["dancing"] },
+      { src: "bingo_dancing_groove.png",    desc: "Bingo dancing, eyes closed, grooving",      activity: ["dancing"] },
+      { src: "family_dancing.png",          desc: "Whole Heeler family dancing together",       activity: ["dancing", "armsup"] },
+      { src: "bingo_standing_sad.png",      desc: "Bingo standing, looking unsure",            activity: ["idle"] },
     ];
 
     // ─── CONFIG ─────────────────────────────────────────
