@@ -9,15 +9,12 @@
     body { background: #000; overflow: hidden; width: 100vw; height: 100vh; cursor: none; }
 
     #container {
-      position: relative;
-      width: 100vw; height: 100vh;
-      overflow: hidden;
-      transform: scaleX(-1);
+      position: relative; width: 100vw; height: 100vh;
+      overflow: hidden; transform: scaleX(-1);
     }
     #webcam {
       position: absolute; top: 0; left: 0;
-      width: 100%; height: 100%;
-      object-fit: cover;
+      width: 100%; height: 100%; object-fit: cover;
     }
     #trackingCanvas {
       position: absolute; top: 0; left: 0;
@@ -30,13 +27,9 @@
       pointer-events: none; z-index: 10;
     }
 
-    /* ─── Character ─── */
     #character {
-      position: absolute;
-      display: none;
-      pointer-events: none;
-      transform-origin: center bottom;
-      transform: scaleX(-1);
+      position: absolute; display: none; pointer-events: none;
+      transform-origin: center bottom; transform: scaleX(-1);
       filter: drop-shadow(0 6px 14px rgba(0,0,0,0.45));
       will-change: transform, opacity, left, top;
     }
@@ -66,29 +59,16 @@
       100% { transform: scaleX(-1) rotate(0deg); }
     }
 
-    #character.entering {
-      display: block;
-      animation: popIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
-    }
-    #character.waving {
-      display: block; opacity: 1;
-      animation: wave 0.8s ease-in-out 2; /* wave twice */
-    }
-    #character.idle {
-      display: block; opacity: 1;
-      animation: idleBob 2.5s ease-in-out infinite;
-    }
-    #character.exiting {
-      display: block;
-      animation: popOut 0.45s ease-in forwards;
-    }
+    #character.entering { display: block; animation: popIn 0.5s cubic-bezier(0.34,1.56,0.64,1) forwards; }
+    #character.waving   { display: block; opacity: 1; animation: wave 0.8s ease-in-out 2; }
+    #character.idle     { display: block; opacity: 1; animation: idleBob 2.5s ease-in-out infinite; }
+    #character.exiting  { display: block; animation: popOut 0.45s ease-in forwards; }
 
-    /* ─── Splash ─── */
+    /* Splash */
     #status {
       position: fixed; top: 0; left: 0; width: 100%; height: 100%;
       display: flex; align-items: center; justify-content: center;
-      z-index: 1000; background: rgba(0,0,0,0.85);
-      transition: opacity 1.5s ease;
+      z-index: 1000; background: rgba(0,0,0,0.85); transition: opacity 1.5s ease;
     }
     #status.hidden { opacity: 0; pointer-events: none; }
     #status-inner { text-align: center; color: #fff; font-family: -apple-system, 'Segoe UI', sans-serif; }
@@ -140,37 +120,41 @@
       <img id="character" alt="" />
     </div>
   </div>
-
   <div id="debug"></div>
 
   <script type="module">
-    // ─── CONFIG ─────────────────────────────────────────
-    const CHARACTERS = [
-      { src: "bluey_dancing_1.gif", name: "Bluey" },
-      { src: "bingo_dance_1.gif",   name: "Bingo" },
-      { src: "bluey_1.gif",         name: "Bluey" },
-      { src: "bluey_bingo_dance_1.gif", name: "Both" },
-      { src: "bluey_bong_happy.gif",    name: "Both" },
-      { src: "bluey_bingo_surprised.gif", name: "Both" },
+    // ─── GIF LIBRARY with activity tags ─────────────────
+    const GIFS = [
+      { src: "bluey_dancing_1.gif",       desc: "Bluey waving, one arm up",           activity: ["waving"] },
+      { src: "bingo_dance_1.gif",          desc: "Bingo dancing, arms spread wide",    activity: ["waving"] },
+      { src: "bluey_1.gif",                desc: "Bluey grooving, eyes closed",        activity: ["dancing"] },
+      { src: "bluey_bingo_dance_1.gif",    desc: "Bluey & Bingo dancing together",     activity: ["dancing"] },
+      { src: "bluey_bingo_surprised.gif",  desc: "Bingo & Bluey surprised",            activity: ["jumping", "armsup"] },
+      { src: "bluey_bong_happy.gif",       desc: "Bingo waving, Bluey standing happy", activity: ["idle", "waving"] },
     ];
 
+    // ─── CONFIG ─────────────────────────────────────────
     const CFG = {
       smoothing: 0.5,
       trackThreshold: 0.25,
       ghostFrames: 20,
 
-      // Wave: hand above shoulder + oscillation OR hold above head
-      waveHandThresh: 0.04,   // wrist above shoulder (normalized)
-      waveChanges: 2,          // direction flips needed
-      waveWindowMs: 2500,      // generous window
+      // Wave detection
+      waveHandThresh: 0.04,
+      waveChanges: 2,
+      waveWindowMs: 2500,
       waveCooldownMs: 2500,
+      holdThresh: 0.05,
+      holdMs: 800,
 
-      holdThresh: 0.05,        // wrist above nose
-      holdMs: 800,             // hold for 0.8s
+      // Character
+      charVisibleMs: 7000,
+      globalCooldownMs: 3000,
 
-      // Character timing
-      charVisibleMs: 7000,     // how long character stays
-      globalCooldownMs: 3000,  // min time between ANY character spawns
+      // Activity detection
+      velocityWindow: 20,          // frames to average
+      dancingThreshold: 0.008,     // normalized velocity for "dancing"
+      jumpThreshold: 0.055,        // sudden Y drop
     };
 
     // ─── ELEMENTS ───────────────────────────────────────
@@ -189,15 +173,13 @@
     let lastVideoTime = -1;
     let fps = 0, frameCt = 0, fpsT = performance.now();
     let showDebug = false;
-
-    // Character state
-    let charActive = false;      // is a character currently on screen?
-    let lastCharTime = 0;        // when the last character was spawned
-    let lastCharIdx = -1;        // avoid same character twice in a row
-    let followTarget = null;     // which person the character follows
+    let charActive = false;
+    let lastCharTime = 0;
+    let lastGifIdx = -1;
+    let followTarget = null;
 
     // ─── COORD MAPPING ─────────────────────────────────
-    function getMapping() {
+    function getMap() {
       const cw = overlay.clientWidth, ch = overlay.clientHeight;
       const vw = video.videoWidth || 640, vh = video.videoHeight || 480;
       const cA = cw / ch, vA = vw / vh;
@@ -210,50 +192,96 @@
       return { x: lm.x * m.vw * m.s - m.ox, y: lm.y * m.vh * m.s - m.oy };
     }
 
+    // ─── ACTIVITY DETECTION ─────────────────────────────
+    function detectActivity(pose, person, now) {
+      // Track position history for velocity
+      person.posHistory.push({ x: person.nx, y: person.ny, t: now });
+      if (person.posHistory.length > CFG.velocityWindow) person.posHistory.shift();
+
+      // Average velocity over window
+      let totalV = 0;
+      for (let i = 1; i < person.posHistory.length; i++) {
+        const dx = person.posHistory[i].x - person.posHistory[i - 1].x;
+        const dy = person.posHistory[i].y - person.posHistory[i - 1].y;
+        totalV += Math.hypot(dx, dy);
+      }
+      const avgV = person.posHistory.length > 1
+        ? totalV / (person.posHistory.length - 1) : 0;
+
+      // Jump detection: sudden upward movement
+      person.hipYHistory.push(person.ny);
+      if (person.hipYHistory.length > 30) person.hipYHistory.shift();
+      let isJumping = false;
+      if (person.hipYHistory.length > 10) {
+        const baseline = person.hipYHistory.slice(0, -3).reduce((a, b) => a + b, 0)
+          / (person.hipYHistory.length - 3);
+        if (baseline - person.ny > CFG.jumpThreshold) isJumping = true;
+      }
+
+      // Arms up detection
+      const lW = pose[15], rW = pose[16], nose = pose[0];
+      let armsUp = false;
+      if (lW && rW && nose) {
+        armsUp = (nose.y - lW.y) > 0.08 && (nose.y - rW.y) > 0.08;
+      }
+
+      // Determine activity
+      if (isJumping) person.activity = "jumping";
+      else if (armsUp) person.activity = "armsup";
+      else if (avgV > CFG.dancingThreshold) person.activity = "dancing";
+      else person.activity = "idle";
+
+      person.velocity = avgV;
+    }
+
+    // ─── PICK GIF BASED ON ACTIVITY ─────────────────────
+    function pickGif(activity) {
+      // Find GIFs that match this activity
+      let matches = GIFS.filter(g => g.activity.includes(activity));
+      if (matches.length === 0) matches = GIFS.filter(g => g.activity.includes("waving")); // fallback
+
+      // Avoid same GIF as last time
+      let filtered = matches.filter((_, i) => GIFS.indexOf(matches[i]) !== lastGifIdx);
+      if (filtered.length === 0) filtered = matches;
+
+      const pick = filtered[Math.floor(Math.random() * filtered.length)];
+      lastGifIdx = GIFS.indexOf(pick);
+      return pick;
+    }
+
     // ─── WAVE DETECTION ─────────────────────────────────
     function detectWave(pose, p, now) {
       if (now - p.lastWaveTrigger < CFG.waveCooldownMs) return false;
 
-      const lW = pose[15], rW = pose[16];
-      const lS = pose[11], rS = pose[12];
-      const nose = pose[0];
+      const lW = pose[15], rW = pose[16], lS = pose[11], rS = pose[12], nose = pose[0];
       if (!lW || !rW || !lS || !rS) return false;
 
-      // Pick higher hand
       let wrist, shoulder;
       if (lW.y < rW.y) { wrist = lW; shoulder = lS; }
       else              { wrist = rW; shoulder = rS; }
 
-      const handUp = (shoulder.y - wrist.y) > CFG.waveHandThresh;
-
-      // ── Hold above head trigger ──
+      // Hold above head
       if (nose && (nose.y - wrist.y) > CFG.holdThresh) {
         if (!p.holdStart) p.holdStart = now;
         p.holdProgress = Math.min((now - p.holdStart) / CFG.holdMs, 1);
         if (p.holdProgress >= 1) {
           p.holdStart = null; p.holdProgress = 0;
-          p.waveHist = [];
-          p.lastWaveTrigger = now;
+          p.waveHist = []; p.lastWaveTrigger = now;
           return true;
         }
-      } else {
-        p.holdStart = null; p.holdProgress = 0;
-      }
+      } else { p.holdStart = null; p.holdProgress = 0; }
 
-      // ── Oscillation trigger ──
+      // Oscillation
+      const handUp = (shoulder.y - wrist.y) > CFG.waveHandThresh;
       if (!handUp) {
-        if (p.waveHist.length > 0) {
-          const age = now - p.waveHist[p.waveHist.length - 1].t;
-          if (age > 600) p.waveHist = [];
-        }
+        if (p.waveHist.length > 0 && now - p.waveHist[p.waveHist.length - 1].t > 600)
+          p.waveHist = [];
         p.handUp = false;
         return false;
       }
-
       p.handUp = true;
       p.waveHist.push({ x: wrist.x, t: now });
       p.waveHist = p.waveHist.filter(e => now - e.t < CFG.waveWindowMs);
-
       if (p.waveHist.length < 4) return false;
 
       let changes = 0, prev = 0;
@@ -262,13 +290,10 @@
         const d = dx > 0.002 ? 1 : dx < -0.002 ? -1 : 0;
         if (d !== 0 && d !== prev) { if (prev !== 0) changes++; prev = d; }
       }
-
       p.waveProgress = Math.min(changes / CFG.waveChanges, 1);
 
       if (changes >= CFG.waveChanges) {
-        p.waveHist = [];
-        p.lastWaveTrigger = now;
-        p.waveProgress = 0;
+        p.waveHist = []; p.lastWaveTrigger = now; p.waveProgress = 0;
         return true;
       }
       return false;
@@ -276,23 +301,17 @@
 
     // ─── SPAWN CHARACTER ────────────────────────────────
     function spawnCharacter(person, mapping, now) {
-      if (charActive) return;
-      if (now - lastCharTime < CFG.globalCooldownMs) return;
+      if (charActive || now - lastCharTime < CFG.globalCooldownMs) return;
 
       charActive = true;
       lastCharTime = now;
       followTarget = person;
 
-      // Pick character (avoid same as last time)
-      let idx;
-      do { idx = Math.floor(Math.random() * CHARACTERS.length); }
-      while (idx === lastCharIdx && CHARACTERS.length > 1);
-      lastCharIdx = idx;
+      // Pick GIF based on person's current activity
+      const gif = pickGif(person.activity === "idle" ? "waving" : person.activity);
+      charEl.src = gif.src;
+      positionChar(person, mapping);
 
-      charEl.src = CHARACTERS[idx].src;
-      positionCharacter(person, mapping);
-
-      // Entrance → wave → idle → exit
       charEl.className = "entering";
       setTimeout(() => {
         if (!charActive) return;
@@ -300,90 +319,68 @@
         setTimeout(() => {
           if (!charActive) return;
           charEl.className = "idle";
-          // Schedule exit
           setTimeout(() => {
             charEl.className = "exiting";
             setTimeout(() => {
-              charEl.className = "";
-              charEl.style.display = "none";
-              charActive = false;
-              followTarget = null;
+              charEl.className = ""; charEl.style.display = "none";
+              charActive = false; followTarget = null;
             }, 450);
           }, CFG.charVisibleMs - 2200);
-        }, 1600); // wave animation duration (0.8s × 2)
-      }, 500); // entrance duration
+        }, 1600);
+      }, 500);
     }
 
-    function positionCharacter(person, mapping) {
-      // Size: roughly match person's full body height
-      const fullHeight = person.torsoH * 2.8;
-      const charH = Math.max(fullHeight, 100);
+    function positionChar(person, mp) {
+      const charH = Math.max(person.torsoH * 2.8, 100);
       const charW = charH * 0.75;
-
-      // Side: push toward center of frame
-      const dir = person.px < mapping.cw / 2 ? 1 : -1;
+      const dir = person.px < mp.cw / 2 ? 1 : -1;
       const offset = person.shoulderW * 1.2 * dir;
-
-      const x = person.px + offset - charW / 2;
-      const y = person.footY - charH;
-
-      charEl.style.left   = x + "px";
-      charEl.style.top    = y + "px";
+      charEl.style.left   = (person.px + offset - charW / 2) + "px";
+      charEl.style.top    = (person.footY - charH) + "px";
       charEl.style.width  = charW + "px";
       charEl.style.height = "auto";
     }
 
     // ─── TRACKING INDICATORS ────────────────────────────
-    function drawIndicators(mapping, now) {
-      tCanvas.width = mapping.cw;
-      tCanvas.height = mapping.ch;
-      tCtx.clearRect(0, 0, mapping.cw, mapping.ch);
-
-      const colors = ["#5BC0EB", "#FF6B6B", "#FDE74C", "#9B5DE5"];
+    function drawIndicators(mp) {
+      tCanvas.width = mp.cw; tCanvas.height = mp.ch;
+      tCtx.clearRect(0, 0, mp.cw, mp.ch);
+      const cols = ["#5BC0EB", "#FF6B6B", "#FDE74C", "#9B5DE5"];
 
       for (const p of people) {
-        const col = colors[p.ci] || "#fff";
-        const cx = p.px;
-        const cy = p.footY - p.torsoH;
+        const c = cols[p.ci] || "#fff";
+        const cx = p.px, cy = p.footY - p.torsoH;
 
-        // Tracking dot
+        // Activity-colored dot
+        const actCol = p.activity === "dancing" ? "#FDE74C"
+          : p.activity === "jumping" ? "#FF6B6B"
+          : p.activity === "armsup" ? "#9B5DE5" : c;
+
         tCtx.beginPath();
-        tCtx.arc(cx, cy, 6, 0, Math.PI * 2);
-        tCtx.fillStyle = col;
-        tCtx.globalAlpha = 0.45;
+        tCtx.arc(cx, cy, 7, 0, Math.PI * 2);
+        tCtx.fillStyle = actCol;
+        tCtx.globalAlpha = 0.5;
         tCtx.fill();
         tCtx.globalAlpha = 1;
 
-        // Wave progress ring (only if hand is up and no character active)
+        // Wave/hold progress
         if (p.handUp && !charActive) {
-          // Outer ring
           tCtx.beginPath();
           tCtx.arc(cx, cy - p.torsoH * 0.6, 18, 0, Math.PI * 2);
-          tCtx.strokeStyle = col;
-          tCtx.lineWidth = 2;
-          tCtx.globalAlpha = 0.4;
-          tCtx.stroke();
-          tCtx.globalAlpha = 1;
+          tCtx.strokeStyle = c; tCtx.lineWidth = 2; tCtx.globalAlpha = 0.4;
+          tCtx.stroke(); tCtx.globalAlpha = 1;
 
-          // Fill ring based on progress
-          const prog = p.waveProgress || 0;
-          if (prog > 0) {
+          if ((p.waveProgress || 0) > 0) {
             tCtx.beginPath();
             tCtx.arc(cx, cy - p.torsoH * 0.6, 18,
-              -Math.PI / 2, -Math.PI / 2 + prog * Math.PI * 2);
-            tCtx.strokeStyle = col;
-            tCtx.lineWidth = 4;
-            tCtx.stroke();
+              -Math.PI/2, -Math.PI/2 + p.waveProgress * Math.PI * 2);
+            tCtx.strokeStyle = c; tCtx.lineWidth = 4; tCtx.stroke();
           }
-
-          // Hold progress (white ring)
-          if (p.holdProgress > 0) {
+          if ((p.holdProgress || 0) > 0) {
             tCtx.beginPath();
             tCtx.arc(cx, cy - p.torsoH * 0.6, 24,
-              -Math.PI / 2, -Math.PI / 2 + p.holdProgress * Math.PI * 2);
-            tCtx.strokeStyle = "#fff";
-            tCtx.lineWidth = 3;
-            tCtx.stroke();
+              -Math.PI/2, -Math.PI/2 + p.holdProgress * Math.PI * 2);
+            tCtx.strokeStyle = "#fff"; tCtx.lineWidth = 3; tCtx.stroke();
           }
         }
       }
@@ -392,21 +389,21 @@
     // ─── NEW PERSON ─────────────────────────────────────
     function newPerson(det, ci) {
       return {
-        nx: det.nx, ny: det.ny,
-        px: det.px, footY: det.footY,
+        nx: det.nx, ny: det.ny, px: det.px, footY: det.footY,
         torsoH: det.torsoH, shoulderW: det.shoulderW,
         ci, ghost: 0,
         waveHist: [], lastWaveTrigger: 0,
         holdStart: null, holdProgress: 0,
         handUp: false, waveProgress: 0,
+        posHistory: [], hipYHistory: [],
+        activity: "idle", velocity: 0,
       };
     }
 
-    // ─── MAIN ───────────────────────────────────────────
+    // ─── INIT ───────────────────────────────────────────
     async function init() {
       try {
         statusMsg.textContent = "Loading pose detection…";
-
         const { PoseLandmarker, FilesetResolver } = await import(
           "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.18/vision_bundle.mjs"
         );
@@ -444,30 +441,27 @@
           if (video.currentTime !== lastVideoTime) {
             lastVideoTime = video.currentTime;
             const results = poseLandmarker.detectForVideo(video, now);
-            const mp = getMapping();
+            const mp = getMap();
 
-            // ── Extract ──
             const dets = [], rawPoses = [];
             if (results.landmarks) {
               for (const pose of results.landmarks) {
                 const lS = pose[11], rS = pose[12], lH = pose[23], rH = pose[24];
                 const lA = pose[27], rA = pose[28];
                 if (!lS || !rS || !lH || !rH) continue;
-
                 const cx = (lH.x + rH.x) / 2, cy = (lH.y + rH.y) / 2;
-                const sMid = lm2px({ x: (lS.x + rS.x) / 2, y: (lS.y + rS.y) / 2 }, mp);
+                const sMid = lm2px({ x: (lS.x+rS.x)/2, y: (lS.y+rS.y)/2 }, mp);
                 const hMid = lm2px({ x: cx, y: cy }, mp);
                 const torsoH = Math.abs(hMid.y - sMid.y);
                 const sw = Math.abs(lm2px(lS, mp).x - lm2px(rS, mp).x);
                 let footY = hMid.y + torsoH * 0.9;
-                if (lA && rA) footY = Math.max(lm2px(lA, mp).y, lm2px(rA, mp).y);
-
+                if (lA && rA) footY = Math.max(lm2px(lA,mp).y, lm2px(rA,mp).y);
                 dets.push({ nx: cx, ny: cy, px: hMid.x, footY, torsoH, shoulderW: sw });
                 rawPoses.push(pose);
               }
             }
 
-            // ── Match ──
+            // Match
             const used = new Set(), surv = [];
             for (const p of people) {
               let bD = Infinity, bI = -1;
@@ -479,21 +473,17 @@
               if (bI >= 0) {
                 used.add(bI);
                 const det = dets[bI], s = CFG.smoothing;
-                surv.push({
-                  ...p,
+                surv.push({ ...p,
                   nx: det.nx, ny: det.ny,
-                  px: p.px * s + det.px * (1 - s),
-                  footY: p.footY * s + det.footY * (1 - s),
-                  torsoH: p.torsoH * s + det.torsoH * (1 - s),
-                  shoulderW: p.shoulderW * s + det.shoulderW * (1 - s),
+                  px: p.px*s + det.px*(1-s), footY: p.footY*s + det.footY*(1-s),
+                  torsoH: p.torsoH*s + det.torsoH*(1-s),
+                  shoulderW: p.shoulderW*s + det.shoulderW*(1-s),
                   ghost: 0, _pi: bI,
                 });
               } else if (p.ghost < CFG.ghostFrames) {
                 surv.push({ ...p, ghost: p.ghost + 1, _pi: -1 });
               }
             }
-
-            // ── New ──
             const usedC = new Set(surv.map(p => p.ci));
             for (let i = 0; i < dets.length; i++) {
               if (used.has(i)) continue;
@@ -501,65 +491,50 @@
               for (let c = 0; c < 4; c++) { if (!usedC.has(c)) { fc = c; break; } }
               if (fc < 0) break;
               usedC.add(fc);
-              const p = newPerson(dets[i], fc);
-              p._pi = i;
-              surv.push(p);
+              const p = newPerson(dets[i], fc); p._pi = i; surv.push(p);
             }
 
-            // ── Gestures ──
+            // Activity + gestures
             for (const p of surv) {
               if (p._pi >= 0 && rawPoses[p._pi]) {
+                detectActivity(rawPoses[p._pi], p, now);
                 if (detectWave(rawPoses[p._pi], p, now)) {
                   spawnCharacter(p, mp, now);
                 }
               }
             }
 
-            // ── Follow target with character ──
+            // Follow
             if (charActive && followTarget) {
               const match = surv.find(p => p.ci === followTarget.ci);
-              if (match) {
-                followTarget = match;
-                positionCharacter(match, mp);
-              }
+              if (match) { followTarget = match; positionChar(match, mp); }
             }
 
             people = surv;
-            drawIndicators(mp, now);
+            drawIndicators(mp);
 
-            // ── Debug ──
             if (showDebug) {
               debugEl.innerHTML =
-                `FPS: ${fps}\n` +
-                `Poses: ${results.landmarks ? results.landmarks.length : 0}\n` +
-                `Tracked: ${people.length}\n` +
-                `Char active: ${charActive}\n` +
-                `Video: ${video.videoWidth}x${video.videoHeight}\n\n` +
+                `FPS: ${fps}  Poses: ${results.landmarks ? results.landmarks.length : 0}  Tracked: ${people.length}\n` +
+                `Char: ${charActive ? 'ACTIVE' : 'ready'}  Last GIF: ${lastGifIdx >= 0 ? GIFS[lastGifIdx].desc : 'none'}\n\n` +
                 people.map(p =>
-                  `[${p.ci}] pos=(${p.px.toFixed(0)},${p.footY.toFixed(0)}) ` +
-                  `torso=${p.torsoH.toFixed(0)} hand=${p.handUp} ` +
-                  `waveProg=${(p.waveProgress || 0).toFixed(1)} ` +
-                  `holdProg=${(p.holdProgress || 0).toFixed(1)} ` +
-                  `ghost=${p.ghost}`
+                  `[${p.ci}] ${p.activity.toUpperCase()} vel=${p.velocity.toFixed(4)} ` +
+                  `hand=${p.handUp} wave=${(p.waveProgress||0).toFixed(1)} ` +
+                  `hold=${(p.holdProgress||0).toFixed(1)} ghost=${p.ghost}`
                 ).join("\n");
             }
           }
           requestAnimationFrame(loop);
         }
         loop();
-
       } catch (err) {
         statusMsg.textContent = "Error: " + err.message;
         console.error(err);
       }
     }
 
-    // ─── CONTROLS ───────────────────────────────────────
     document.addEventListener("keydown", e => {
-      if (e.key === "d" || e.key === "D") {
-        showDebug = !showDebug;
-        debugEl.style.display = showDebug ? "block" : "none";
-      }
+      if (e.key === "d" || e.key === "D") { showDebug = !showDebug; debugEl.style.display = showDebug ? "block" : "none"; }
       if (e.key === "f" || e.key === "F") document.documentElement.requestFullscreen?.();
     });
     document.body.addEventListener("click", () => {
