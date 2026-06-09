@@ -339,8 +339,17 @@
       const charW = charH * 0.75;
       const dir = person.px < mp.cw / 2 ? 1 : -1;
       const offset = person.shoulderW * 1.2 * dir;
-      charEl.style.left   = (person.px + offset - charW / 2) + "px";
-      charEl.style.top    = (person.footY - charH) + "px";
+
+      // Calculate position then clamp to viewport
+      let x = person.px + offset - charW / 2;
+      let y = person.footY - charH;
+
+      // Keep fully on screen
+      x = Math.max(0, Math.min(x, mp.cw - charW));
+      y = Math.max(0, Math.min(y, mp.ch - charH));
+
+      charEl.style.left   = x + "px";
+      charEl.style.top    = y + "px";
       charEl.style.width  = charW + "px";
       charEl.style.height = "auto";
     }
