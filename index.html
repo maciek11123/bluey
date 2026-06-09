@@ -111,24 +111,24 @@
   <script type="module">
     // ─── GIF LIBRARY with activity tags ─────────────────
     const GIFS = [
-      // ── Animated GIFs ──
-      { src: "bluey_dancing_1.gif",        desc: "Bluey waving, one arm up (animated)",       activity: ["waving"] },
-      { src: "bingo_dance_1.gif",           desc: "Bingo dancing, arms wide (animated)",       activity: ["waving", "dancing"] },
-      { src: "bluey_1.gif",                 desc: "Bluey grooving, eyes closed (animated)",    activity: ["dancing"] },
-      { src: "bluey_bingo_dance_1.gif",     desc: "Bluey & Bingo dancing (animated)",          activity: ["dancing"] },
-      { src: "bluey_bingo_surprised.gif",   desc: "Bingo & Bluey surprised (animated)",        activity: ["jumping", "armsup"] },
-      { src: "bluey_bong_happy.gif",        desc: "Bingo waving, Bluey happy (animated)",      activity: ["idle", "waving"] },
-      // ── Static PNGs (transparent bg) ──
-      { src: "bluey_arms_up.png",           desc: "Bluey excited, arms raised wide",           activity: ["armsup", "waving"] },
-      { src: "bluey_scared.png",            desc: "Bluey startled, fists up",                  activity: ["jumping"] },
-      { src: "bluey_walking.png",           desc: "Bluey walking casually",                    activity: ["idle"] },
-      { src: "bluey_bingo_jumping.png",     desc: "Bluey & Bingo jumping together",            activity: ["jumping", "armsup"] },
-      { src: "bingo_waving.png",            desc: "Bingo waving, looking happy",               activity: ["waving"] },
-      { src: "bingo_arms_wide.png",         desc: "Bingo arms spread, playful",                activity: ["dancing", "waving"] },
-      { src: "bluey_dancing_happy.png",     desc: "Bluey dancing, eyes closed, grooving",      activity: ["dancing"] },
-      { src: "bingo_dancing_groove.png",    desc: "Bingo dancing, eyes closed, grooving",      activity: ["dancing"] },
-      { src: "family_dancing.png",          desc: "Whole Heeler family dancing together",       activity: ["dancing", "armsup"] },
-      { src: "bingo_standing_sad.png",      desc: "Bingo standing, looking unsure",            activity: ["idle"] },
+      // ── Animated GIFs (preferred) ──
+      { src: "bluey_dancing_1.gif",        desc: "Bluey waving, one arm up (animated)",       activity: ["waving"],            animated: true },
+      { src: "bingo_dance_1.gif",           desc: "Bingo dancing, arms wide (animated)",       activity: ["waving", "dancing"], animated: true },
+      { src: "bluey_1.gif",                 desc: "Bluey grooving, eyes closed (animated)",    activity: ["dancing"],           animated: true },
+      { src: "bluey_bingo_dance_1.gif",     desc: "Bluey & Bingo dancing (animated)",          activity: ["dancing"],           animated: true },
+      { src: "bluey_bingo_surprised.gif",   desc: "Bingo & Bluey surprised (animated)",        activity: ["jumping", "armsup"], animated: true },
+      { src: "bluey_bong_happy.gif",        desc: "Bingo waving, Bluey happy (animated)",      activity: ["idle", "waving"],    animated: true },
+      // ── Static PNGs (fallback) ──
+      { src: "bluey_arms_up.png",           desc: "Bluey excited, arms raised wide",           activity: ["armsup", "waving"],  animated: false },
+      { src: "bluey_scared.png",            desc: "Bluey startled, fists up",                  activity: ["jumping"],           animated: false },
+      { src: "bluey_walking.png",           desc: "Bluey walking casually",                    activity: ["idle"],              animated: false },
+      { src: "bluey_bingo_jumping.png",     desc: "Bluey & Bingo jumping together",            activity: ["jumping", "armsup"],animated: false },
+      { src: "bingo_waving.png",            desc: "Bingo waving, looking happy",               activity: ["waving"],            animated: false },
+      { src: "bingo_arms_wide.png",         desc: "Bingo arms spread, playful",                activity: ["dancing", "waving"], animated: false },
+      { src: "bluey_dancing_happy.png",     desc: "Bluey dancing, eyes closed, grooving",      activity: ["dancing"],           animated: false },
+      { src: "bingo_dancing_groove.png",    desc: "Bingo dancing, eyes closed, grooving",      activity: ["dancing"],           animated: false },
+      { src: "family_dancing.png",          desc: "Whole Heeler family dancing together",       activity: ["dancing", "armsup"],animated: false },
+      { src: "bingo_standing_sad.png",      desc: "Bingo standing, looking unsure",            activity: ["idle"],              animated: false },
     ];
 
     // ─── CONFIG ─────────────────────────────────────────
@@ -234,16 +234,22 @@
 
     // ─── PICK GIF BASED ON ACTIVITY ─────────────────────
     function pickGif(activity) {
-      // Find GIFs that match this activity
-      let matches = GIFS.filter(g => g.activity.includes(activity));
-      if (matches.length === 0) matches = GIFS.filter(g => g.activity.includes("waving")); // fallback
+      // Find animated GIFs that match this activity first
+      let matches = GIFS.filter(g => g.activity.includes(activity) && g.animated);
+      // Fall back to any animated GIF if no activity match
+      if (matches.length === 0) matches = GIFS.filter(g => g.animated);
+      // Last resort: static PNGs
+      if (matches.length === 0) matches = GIFS.filter(g => g.activity.includes(activity));
+      if (matches.length === 0) matches = GIFS;
 
-      // Avoid same GIF as last time
+      // Avoid same as last time
       let filtered = matches.filter((_, i) => GIFS.indexOf(matches[i]) !== lastGifIdx);
       if (filtered.length === 0) filtered = matches;
 
       const pick = filtered[Math.floor(Math.random() * filtered.length)];
       lastGifIdx = GIFS.indexOf(pick);
+      // Cache-bust so GIF restarts animation on repeat
+      pick._src = pick.src + "?t=" + Date.now();
       return pick;
     }
 
@@ -307,7 +313,7 @@
 
       // Pick image based on person's current activity
       const gif = pickGif(person.activity === "idle" ? "waving" : person.activity);
-      charEl.src = gif.src;
+      charEl.src = gif._src || gif.src;
       positionChar(person, mapping);
 
       // Pop in → sit still (GIF animates itself) → pop out
