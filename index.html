@@ -340,12 +340,8 @@
     }
 
     function positionChar(person, mp) {
-      const yRatio = Math.max(0, Math.min(1, person.footY / mp.ch));
-
-      // Size: 35% at top → 60% at bottom of screen
-      const minSize = mp.ch * 0.35;
-      const maxSize = mp.ch * 0.60;
-      const charH = minSize + (maxSize - minSize) * yRatio;
+      // Fixed 40% of screen height. Period.
+      const charH = mp.ch * 0.40;
 
       const dir = person.px < mp.cw / 2 ? 1 : -1;
       const offset = person.shoulderW * 1.2 * dir;
