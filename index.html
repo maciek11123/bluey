@@ -340,30 +340,26 @@
     }
 
     function positionChar(person, mp) {
-      // Depth-based sizing: bigger at bottom of screen (closer), smaller at top (farther)
-      // Y position as 0-1 ratio (0 = top, 1 = bottom)
       const yRatio = Math.max(0, Math.min(1, person.footY / mp.ch));
 
-      // Size range: 30% of screen at top → 55% at bottom
-      const minSize = mp.ch * 0.30;
-      const maxSize = mp.ch * 0.55;
+      // Size: 35% at top → 60% at bottom of screen
+      const minSize = mp.ch * 0.35;
+      const maxSize = mp.ch * 0.60;
       const charH = minSize + (maxSize - minSize) * yRatio;
-      const charW = charH * 0.75;
+
       const dir = person.px < mp.cw / 2 ? 1 : -1;
       const offset = person.shoulderW * 1.2 * dir;
 
-      // Calculate position then clamp to viewport
-      let x = person.px + offset - charW / 2;
+      let x = person.px + offset - charH * 0.4;
       let y = person.footY - charH;
 
-      // Keep fully on screen
-      x = Math.max(0, Math.min(x, mp.cw - charW));
+      x = Math.max(0, Math.min(x, mp.cw - charH * 0.8));
       y = Math.max(0, Math.min(y, mp.ch - charH));
 
       charEl.style.left   = x + "px";
       charEl.style.top    = y + "px";
-      charEl.style.width  = charW + "px";
-      charEl.style.height = "auto";
+      charEl.style.height = charH + "px";
+      charEl.style.width  = "auto";
     }
 
     // ─── TRACKING INDICATORS ────────────────────────────
