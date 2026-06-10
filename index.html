@@ -183,8 +183,8 @@ function spawnCharacter(person, mp, now) {
   const gif = pickGif();
   charEl.src = gif.src + "?t=" + Date.now();
 
-  // 40% screen height
-  const charH = mp.ch * 0.40;
+  // 55% screen height - all characters same size
+  const charH = mp.ch * 0.55;
   const cx = person.px, cy = person.py;
   const dir = cx < mp.cw/2 ? 1 : -1;
   const offset = (person.width || 80) * 0.6 * dir;
