@@ -344,9 +344,9 @@
       // Y position as 0-1 ratio (0 = top, 1 = bottom)
       const yRatio = Math.max(0, Math.min(1, person.footY / mp.ch));
 
-      // Size range: 15% of screen at top → 35% at bottom
-      const minSize = mp.ch * 0.15;
-      const maxSize = mp.ch * 0.38;
+      // Size range: 30% of screen at top → 55% at bottom
+      const minSize = mp.ch * 0.30;
+      const maxSize = mp.ch * 0.55;
       const charH = minSize + (maxSize - minSize) * yRatio;
       const charW = charH * 0.75;
       const dir = person.px < mp.cw / 2 ? 1 : -1;
